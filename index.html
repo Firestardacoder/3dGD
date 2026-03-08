@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Neon Dash: Final Master</title>
+    <title>3D Neon Dash: Extreme Master</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; user-select: none; }
         #ui { position: absolute; top: 20px; left: 20px; color: #0ff; pointer-events: none; z-index: 10; font-size: 32px; text-shadow: 0 0 10px #0ff; }
@@ -27,13 +27,13 @@
 
     <div id="start-screen">
         <h1 style="font-size: 60px; margin-bottom: 0;">NEON DASH 3D</h1>
-        <p>Brain cells will be deleted upon entry.</p>
+        <p>A high-speed survival simulation. Brain cell deletion imminent.</p>
         <button class="main-btn" onclick="startGame()">INITIALIZE</button>
     </div>
 
     <div id="subject-gate">
-        <h2 style="font-size: 40px; color: #ff0055;">CRITICAL RECOVERY</h2>
-        <p>One subject is the SAFE PATH. Pick wisely to continue.</p>
+        <h2 style="font-size: 40px; color: #ff0055;">SYSTEM RECOVERY</h2>
+        <p>Pick the <strong>WORST</strong> subject to bypass the crash and continue.</p>
         <div id="subject-buttons">
             <button class="subject-btn" onclick="checkSubject('Math')">Math</button>
             <button class="subject-btn" onclick="checkSubject('Science')">Science</button>
@@ -45,7 +45,7 @@
 
     <div id="game-over" style="display:none">
         <h1 style="color:#ff0055; font-size: 50px;">TOTAL WIPEOUT</h1>
-        <p>DISTANCE: <span id="final-score">0</span>m</p>
+        <p>FINAL DISTANCE: <span id="final-score">0</span>m</p>
         <button class="main-btn" onclick="location.reload()">REBOOT</button>
     </div>
 
@@ -63,7 +63,7 @@
         
         let vy = 0;
         const GRAVITY = -75;
-        const JUMP_STRENGTH = 27;
+        const JUMP_STRENGTH = 28;
 
         function startGame() {
             if (confirm("WARNING: Proceeding results in brain cell deletion. Proceed?")) {
@@ -91,7 +91,7 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
-            // 🌌 Camera-Relative Starfield
+            // 🌌 Infinite Starfield
             const starGeo = new THREE.BufferGeometry();
             const starVets = [];
             for(let i=0; i<3000; i++) {
@@ -181,6 +181,7 @@
 
             stars.position.z = player.position.z;
 
+            // Physics & Lane Snap
             player.position.y += vy * delta;
             if (player.position.y > 0.65) { vy += GRAVITY * delta; player.rotation.x -= 14 * delta; }
             else { player.position.y = 0.65; vy = 0; player.rotation.x = 0; }
@@ -191,6 +192,9 @@
             camera.lookAt(player.position.x, 3, player.position.z - 15);
 
             if (player.position.z < nextObstacleZ) spawnObstacle();
+
+            // BOX COLLISION ENGINE
+            const playerBox = new THREE.Box3().setFromObject(player);
 
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const o = obstacles[i];
@@ -205,16 +209,12 @@
                     if (Math.abs(o.position.x) > 8) o.userData.moveDir *= -1;
                 }
 
-                const dz = Math.abs(player.position.z - o.position.z);
-                const dx = Math.abs(player.position.x - o.position.x);
-                const py = player.position.y;
+                // Check intersection
+                const obstacleBox = new THREE.Box3().setFromObject(o);
+                obstacleBox.expandByVector(new THREE.Vector3(-0.3, -0.2, -0.3)); // Forgiving margin
 
-                if (dz < 2.0 && dx < 1.8) {
-                    const type = o.userData.type;
-                    if (type === "triple" && py < 3.0) die();
-                    if (type === "gate" && py > 6.0) die();
-                    if (type === "platform" && py > 4.5 && py < 8.0) die();
-                    if (type === "pillar") die();
+                if (playerBox.intersectsBox(obstacleBox)) {
+                    die();
                 }
             }
 
@@ -242,7 +242,7 @@
                 isPaused = false;
                 obstacles.forEach(o => scene.remove(o));
                 obstacles = [];
-                vy = 0; // Reset velocity
+                vy = 0; // Physics reset
                 vy = JUMP_STRENGTH; 
                 scene.background = new THREE.Color(0x00ff00);
                 setTimeout(() => { scene.background = new THREE.Color(0x010103); }, 300);
