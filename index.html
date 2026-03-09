@@ -2,56 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3DGD: Deadlocked Shanghai</title>
+    <title>3DGD: Shanghai Nights HARD</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; user-select: none; }
-        #ui { position: absolute; top: 20px; left: 20px; color: #0ff; pointer-events: none; z-index: 10; font-size: 32px; text-shadow: 0 0 10px #0ff; }
-        #start-screen, #game-over, #subject-gate { position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.98); color: #0ff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #0ff; z-index: 10; font-size: 32px; text-shadow: 0 0 10px #0ff; }
+        #start-screen, #game-over, #subject-gate { position: absolute; width: 100%; height: 100%; background: #010108; color: #0ff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; }
         #subject-gate { display: none; z-index: 300; }
-        .menu-btn { background: #111; color: #0ff; border: 2px solid #0ff; padding: 12px; margin: 8px; cursor: pointer; width: 260px; font-family: 'Arial Black', sans-serif; transition: 0.2s; font-size: 18px; border-radius: 5px; }
-        .menu-btn:hover { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
-        .init-btn { background: #ff0055 !important; border-color: #ff0055 !important; color: white !important; }
+        .menu-btn { background: #111; color: #0ff; border: 2px solid #0ff; padding: 15px 30px; cursor: pointer; font-size: 20px; border-radius: 5px; transition: 0.3s; margin: 10px; }
+        .menu-btn:hover { background: #0ff; color: #000; box-shadow: 0 0 25px #0ff; }
     </style>
 </head>
 <body>
     <div id="start-screen">
-        <h1 style="font-size: 80px; margin-bottom: 10px; letter-spacing: 5px; text-shadow: 0 0 20px #0ff;">3DGD</h1>
-        <p>TRACK: DEADLOCKED - F-777</p>
-        <button class="menu-btn init-btn" onclick="beginGame()">INITIALIZE ENGINE</button>
+        <h1 style="font-size: 100px; margin: 0;">3DGD</h1>
+        <p>SHANGHAI: HARD MODE // TRACK: DEADLOCKED</p>
+        <button class="menu-btn" onclick="beginGame()">INITIALIZE ENGINE</button>
     </div>
-    
+
     <div id="subject-gate">
-        <h2 style="color: #ff0055;">SYSTEM RECOVERY</h2>
+        <h2 style="color: #ff0055; font-size: 40px;">RECOVERY MODE</h2>
         <div id="subject-buttons">
             <button class="menu-btn" onclick="checkSubject('Math')">Math</button>
             <button class="menu-btn" onclick="checkSubject('Science')">Science</button>
             <button class="menu-btn" onclick="checkSubject('ELA')">ELA</button>
-            <button class="menu-btn" onclick="checkSubject('Social Studies')">Social Studies</button>
             <button class="menu-btn" onclick="checkSubject('PE')">PE</button>
         </div>
     </div>
 
-    <div id="game-over" style="display:none"><h1>TOTAL WIPEOUT</h1><button class="menu-btn" onclick="location.reload()">REBOOT</button></div>
+    <div id="game-over" style="display:none">
+        <h1 style="color: #ff0055;">WIPEOUT</h1>
+        <button class="menu-btn" onclick="location.reload()">REBOOT</button>
+    </div>
+    
     <div id="ui">DIST: <span id="score">0</span></div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <script>
         let scene, camera, renderer, player, clock;
-        let obstacles = [], floors = [], backgroundChunks = [];
-        let score = 0, isGameOver = false, isPaused = true, targetLane = 0;
-        let hasUsedLife = false, winningSubject = "";
-        let audio, audioCtx, analyser, dataArray, buildingMaterials = [];
+        let obstacles = [], floors = [], backgroundChunks = [], buildingMaterials = [];
+        let score = 0, isPaused = true, isShipMode = false, hasUsedLife = false, winningSubject = "";
+        let audioCtx, analyser, dataArray, audio, targetLane = 0;
 
-        const CONSTANT_SPEED = 85; 
+        const CONSTANT_SPEED = 90; 
         const laneWidth = 4.5;
-        let nextObstacleZ = -100;
-        let isShipMode = false, spacePressed = false;
-        let vy = 0;
+        let vy = 0, nextObstacleZ = -100;
         const GRAVITY = -95, JUMP_STRENGTH = 33, SHIP_THRUST = 210;
 
         function beginGame() {
-            initAudio();
+            if (!audioCtx) initAudio();
+            else audioCtx.resume();
             document.getElementById('start-screen').style.display = 'none';
             isPaused = false;
             clock.start();
@@ -60,19 +59,13 @@
         function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
-            
-            // Link to Deadlocked by F-777
-            audio = new Audio('https://ia801501.us.archive.org/21/items/geometry-dash-deadlocked/Geometry%20Dash%20-%20Deadlocked.mp3');
-            audio.crossOrigin = "anonymous";
-            audio.loop = true;
-            
-            const source = audioCtx.createMediaElementSource(audio);
-            source.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            
             analyser.fftSize = 256;
             dataArray = new Uint8Array(analyser.frequencyBinCount);
-            audio.play();
+            audio = new Audio('https://ia801501.us.archive.org/21/items/geometry-dash-deadlocked/Geometry%20Dash%20-%20Deadlocked.mp3');
+            audio.crossOrigin = "anonymous"; audio.loop = true;
+            const source = audioCtx.createMediaElementSource(audio);
+            source.connect(analyser); analyser.connect(audioCtx.destination);
+            audio.play().catch(() => console.log("Sound blocked."));
         }
 
         init();
@@ -82,12 +75,13 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x010108);
             scene.fog = new THREE.Fog(0x010108, 60, 280);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 3000);
             camera.position.set(0, 10, 24);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
+            clock = new THREE.Clock();
             player = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2 }));
             player.position.y = 0.7;
             scene.add(player);
@@ -99,34 +93,29 @@
                 floors.push(grid);
                 if(i % 2 === 0) spawnBackgroundChunk(i * -100);
             }
-            clock = new THREE.Clock(false);
+
             window.addEventListener('keydown', (e) => {
                 if (isPaused) return;
                 if (e.code === 'ArrowLeft' && targetLane > -1) targetLane--;
                 if (e.code === 'ArrowRight' && targetLane < 1) targetLane++;
-                if (e.code === 'Space' || e.code === 'ArrowUp') { spacePressed = true; if(!isShipMode && player.position.y <= 0.8) vy = JUMP_STRENGTH; }
+                if (e.code === 'Space' || e.code === 'ArrowUp') { 
+                    if(!isShipMode && player.position.y <= 0.8) vy = JUMP_STRENGTH;
+                    window.spacePressed = true;
+                }
             });
-            window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') spacePressed = false; });
+            window.addEventListener('keyup', (e) => { if(e.code === 'Space' || e.code === 'ArrowUp') window.spacePressed = false; });
         }
 
         function spawnBackgroundChunk(zPos) {
             const chunk = new THREE.Group();
-            const neonColors = [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00];
             for (let side = -1; side <= 1; side += 2) {
                 for (let i = 0; i < 4; i++) {
                     const h = 60 + Math.random() * 100;
-                    const w = 15;
-                    const bGroup = new THREE.Group();
-                    const shell = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ color: 0x020205 }));
-                    bGroup.add(shell);
-                    const winCol = neonColors[Math.floor(Math.random() * neonColors.length)];
+                    const shell = new THREE.Mesh(new THREE.BoxGeometry(15, h, 15), new THREE.MeshStandardMaterial({ color: 0x020205 }));
+                    const winCol = [0x00ffff, 0xff00ff, 0x00ff00][Math.floor(Math.random()*3)];
                     const winMat = new THREE.MeshStandardMaterial({ color: winCol, emissive: winCol, emissiveIntensity: 1 });
                     buildingMaterials.push(winMat); 
-                    for(let y = 5; y < h; y += 15) {
-                        const win = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 2, 5), winMat);
-                        win.position.set(0, y - h/2, 0);
-                        bGroup.add(win);
-                    }
+                    const bGroup = new THREE.Group(); bGroup.add(shell);
                     bGroup.position.set(side * (55 + Math.random() * 50), h/2, (Math.random()-0.5)*100);
                     chunk.add(bGroup);
                 }
@@ -136,56 +125,77 @@
 
         function spawnObstacle() {
             let obs = new THREE.Group();
-            let type = (Math.random() < 0.18) ? "portal" : (Math.random() < 0.4 ? "spike" : "wall");
+            let typeRand = Math.random();
+            let type = "";
 
-            if (type === "portal") {
+            if (typeRand < 0.15) {
+                type = "portal";
                 const col = isShipMode ? 0x0066ff : 0x00ff66;
-                const mesh = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 70, 32, 1, true), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 5, transparent: true, opacity: 0.4, side: THREE.DoubleSide }));
-                obs.add(mesh);
+                obs.add(new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 70, 32, 1, true), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 5, transparent: true, opacity: 0.4, side: THREE.DoubleSide })));
                 obs.userData = { type: "portal", portalTo: isShipMode ? "normal" : "ship" };
+                obs.position.set(0, 10, player.position.z - 220);
             } else {
                 const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
                 const blueMat = new THREE.LineBasicMaterial({ color: 0x00ffff });
-                const geo = type === "spike" ? new THREE.ConeGeometry(1.6, 4, 4) : new THREE.BoxGeometry(laneWidth, 12, 3);
-                const core = new THREE.Mesh(geo, blackMat);
-                const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo), blueMat);
-                obs.add(core, line);
-                obs.userData = { type: type };
+                
+                if (typeRand < 0.45) { // Spikes
+                    type = "spike";
+                    for(let i=0; i<3; i++) {
+                        const cone = new THREE.Mesh(new THREE.ConeGeometry(1.6, 4, 4), blackMat);
+                        cone.add(new THREE.LineSegments(new THREE.EdgesGeometry(cone.geometry), blueMat));
+                        cone.position.z = i * -4.5;
+                        obs.add(cone);
+                    }
+                    obs.position.set((Math.floor(Math.random()*3)-1)*laneWidth, 2, player.position.z - 220);
+                } else if (typeRand < 0.75) { // Moving Pillars (NEW)
+                    type = "pillar";
+                    const box = new THREE.Mesh(new THREE.BoxGeometry(3, 25, 3), blackMat);
+                    box.add(new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), blueMat));
+                    obs.add(box);
+                    obs.userData = { type: "pillar", moveDir: Math.random() > 0.5 ? 1 : -1 };
+                    obs.position.set(0, 12, player.position.z - 220);
+                } else { // Low Ceilings for Ship (NEW)
+                    type = "ceiling";
+                    const wall = new THREE.Mesh(new THREE.BoxGeometry(laneWidth * 3, 10, 4), blackMat);
+                    wall.add(new THREE.LineSegments(new THREE.EdgesGeometry(wall.geometry), blueMat));
+                    obs.add(wall);
+                    obs.position.set(0, 24, player.position.z - 220);
+                    type = "wall"; 
+                }
             }
-            obs.position.set((type === "portal" ? 0 : (Math.floor(Math.random()*3)-1)*laneWidth), type === "spike" ? 2 : 6, player.position.z - 220);
+            obs.userData.type = type;
             scene.add(obs); obstacles.push(obs);
-            nextObstacleZ = player.position.z - 85;
+            nextObstacleZ = player.position.z - 55; // INCREASED DENSITY
         }
 
         function animate() {
-            if (isGameOver) return;
             requestAnimationFrame(animate);
-            if (isPaused) { renderer.render(scene, camera); return; }
+            if (isPaused) return;
 
-            const delta = Math.min(clock.getDelta(), 0.05);
+            const delta = Math.min(clock.getDelta(), 0.1);
             player.position.z -= CONSTANT_SPEED * delta;
             score = Math.floor(Math.abs(player.position.z) / 10);
             document.getElementById('score').innerText = score;
 
             if (analyser) {
                 analyser.getByteFrequencyData(dataArray);
-                let bass = dataArray[0] / 255.0; 
-                buildingMaterials.forEach(mat => mat.emissiveIntensity = 0.4 + (bass * 6.0));
+                let bass = dataArray[0] / 255.0;
+                buildingMaterials.forEach(mat => mat.emissiveIntensity = 0.4 + (bass * 5.0));
             }
 
             if (isShipMode) {
-                if (spacePressed) vy += SHIP_THRUST * delta;
+                if (window.spacePressed) vy += SHIP_THRUST * delta;
                 vy += GRAVITY * delta;
                 player.position.y += vy * delta;
                 if (player.position.y < 0.7) { player.position.y = 0.7; vy = 0; }
-                if (player.position.y > 25) { player.position.y = 25; vy = -10; }
+                if (player.position.y > 28) { player.position.y = 28; vy = -10; }
             } else {
                 player.position.y += vy * delta;
                 if (player.position.y > 0.7) vy += GRAVITY * delta;
                 else { player.position.y = 0.7; vy = 0; }
             }
 
-            player.position.x += (targetLane * laneWidth - player.position.x) * 16 * delta;
+            player.position.x += ((targetLane * laneWidth) - player.position.x) * 15 * delta;
             camera.position.z = player.position.z + 28;
             camera.lookAt(player.position.x, 6, player.position.z - 20);
 
@@ -195,15 +205,20 @@
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const o = obstacles[i];
                 if (o.position.z > player.position.z + 50) { scene.remove(o); obstacles.splice(i, 1); continue; }
+                
+                if (o.userData.type === "pillar") {
+                    o.position.x += o.userData.moveDir * 15 * delta;
+                    if (Math.abs(o.position.x) > 10) o.userData.moveDir *= -1;
+                }
+
                 if (o.userData.type === "portal") {
-                    if (player.position.z < o.position.z + 2 && player.position.z > o.position.z - 2) {
+                    if (Math.abs(player.position.z - o.position.z) < 5) {
                         isShipMode = (o.userData.portalTo === "ship");
                         vy = 0; scene.remove(o); obstacles.splice(i, 1);
-                        continue;
                     }
                 } else {
                     const oBox = new THREE.Box3().setFromObject(o);
-                    oBox.expandByVector(new THREE.Vector3(-0.6, -0.6, -0.6)); 
+                    oBox.expandByVector(new THREE.Vector3(-0.5, -0.5, -0.5)); 
                     if (pBox.intersectsBox(oBox)) die();
                 }
             }
@@ -213,22 +228,22 @@
         }
 
         function die() {
-            if (audio) audio.pause();
+            if(audio) audio.pause();
             if (!hasUsedLife && score > 30) {
                 isPaused = true;
-                winningSubject = ['Math', 'Science', 'ELA', 'Social Studies', 'PE'][Math.floor(Math.random()*5)];
+                winningSubject = ['Math', 'Science', 'ELA', 'PE'][Math.floor(Math.random()*4)];
                 document.getElementById('subject-gate').style.display = 'flex';
-            } else { isGameOver = true; document.getElementById('game-over').style.display = 'flex'; }
+            } else { isPaused = true; document.getElementById('game-over').style.display = 'flex'; }
         }
 
         function checkSubject(choice) {
             document.getElementById('subject-gate').style.display = 'none';
             if (choice === winningSubject) {
-                if (audio) audio.play();
+                if(audio) audio.play();
                 hasUsedLife = true; isPaused = false;
                 obstacles.forEach(o => scene.remove(o)); obstacles = [];
                 vy = isShipMode ? 0 : JUMP_STRENGTH;
-            } else { isGameOver = true; document.getElementById('game-over').style.display = 'flex'; }
+            } else { document.getElementById('game-over').style.display = 'flex'; }
         }
     </script>
 </body>
