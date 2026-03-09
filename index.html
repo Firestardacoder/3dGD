@@ -7,112 +7,77 @@
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; user-select: none; }
         #ui { position: absolute; top: 20px; left: 20px; color: #0ff; pointer-events: none; z-index: 10; font-size: 32px; text-shadow: 0 0 10px #0ff; }
-        
-        #start-screen, #game-over, #subject-gate, #tutorial-overlay { 
-            position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.98); 
-            color: #0ff; display: flex; flex-direction: column; justify-content: center; 
-            align-items: center; z-index: 100; text-align: center;
-        }
+        #start-screen, #game-over, #subject-gate, #tutorial-overlay { position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.98); color: #0ff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; }
         #subject-gate, #tutorial-overlay { display: none; z-index: 300; }
-        
-        .tutorial-card {
-            background: rgba(0, 255, 255, 0.05); border: 2px solid #0ff;
-            padding: 40px; border-radius: 15px; max-width: 600px;
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
-        }
-
-        .subject-btn, .menu-btn { 
-            background: #111; color: #0ff; border: 2px solid #0ff; padding: 12px; 
-            margin: 8px; cursor: pointer; width: 260px; font-family: 'Arial Black', sans-serif;
-            transition: all 0.2s; font-size: 18px; border-radius: 5px;
-        }
-        .subject-btn:hover, .menu-btn:hover { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
-        
+        .menu-btn { background: #111; color: #0ff; border: 2px solid #0ff; padding: 12px; margin: 8px; cursor: pointer; width: 260px; font-family: 'Arial Black', sans-serif; transition: 0.2s; font-size: 18px; border-radius: 5px; }
+        .menu-btn:hover { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
         .init-btn { background: #ff0055 !important; border-color: #ff0055 !important; color: white !important; }
-        .init-btn:hover { box-shadow: 0 0 20px #ff0055 !important; }
-
         p { color: white; line-height: 1.6; }
-        .highlight { color: #0ff; font-weight: bold; }
     </style>
 </head>
 <body>
-
     <div id="start-screen">
         <h1 style="font-size: 80px; margin-bottom: 10px; letter-spacing: 5px; text-shadow: 0 0 20px #0ff;">3DGD</h1>
-        <p style="color:#fff; margin-bottom: 30px; letter-spacing: 2px;">SHANGHAI NIGHTS</p>
+        <p>SHANGHAI NIGHTS: AUDIO-REACTIVE</p>
         <button class="menu-btn init-btn" onclick="startWithWarning()">INITIALIZE ENGINE</button>
         <button class="menu-btn" onclick="showTutorialMenu()">START TUTORIAL</button>
     </div>
-
-    <div id="tutorial-overlay">
-        <div class="tutorial-card">
-            <h2 id="tut-title">TRAINING MODULE</h2>
-            <div id="tut-content" style="text-align: left; margin: 20px 0;">
-                <p>1. <span class="highlight">ARROWS:</span> Change lanes to dodge walls.</p>
-                <p>2. <span class="highlight">SPACE:</span> Jump over red spikes.</p>
-                <p>3. <span class="highlight">SHIP MODE:</span> Entering a <span style="color:#0f6">Green Beam</span> lets you fly. Hold Space to go up!</p>
-                <p>4. <span class="highlight">SAVES:</span> If you crash, pick the right subject to continue.</p>
-            </div>
-            <button class="menu-btn" onclick="closeTutorial()">CLOSE & START</button>
-        </div>
-    </div>
-
-    <div id="subject-gate">
-        <h2 style="font-size: 40px; color: #ff0055;">SYSTEM RECOVERY</h2>
-        <p>Pick the RANDOM safe subject to bypass the crash.</p>
-        <div id="subject-buttons">
-            <button class="subject-btn" onclick="checkSubject('Math')">Math</button>
-            <button class="subject-btn" onclick="checkSubject('Science')">Science</button>
-            <button class="subject-btn" onclick="checkSubject('ELA')">ELA</button>
-            <button class="subject-btn" onclick="checkSubject('Social Studies')">Social Studies</button>
-            <button class="subject-btn" onclick="checkSubject('PE')">PE</button>
-        </div>
-    </div>
-
-    <div id="game-over" style="display:none">
-        <h1 style="color:#ff0055; font-size: 50px;">TOTAL WIPEOUT</h1>
-        <button class="menu-btn" onclick="location.reload()">BACK TO MENU</button>
-    </div>
-
+    
     <div id="ui">DIST: <span id="score">0</span></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script>
         let scene, camera, renderer, player, clock, stars;
         let obstacles = [], floors = [], backgroundChunks = [];
-        let score = 0, currentSpeed = 65, isGameOver = false, isPaused = true, targetLane = 0;
+        let score = 0, isGameOver = false, isPaused = true, targetLane = 0;
         let hasUsedLife = false, winningSubject = "";
         
+        // Audio Variables
+        let audioCtx, analyser, dataArray;
+        let buildingMaterials = []; // To keep track for pulsing
+
+        const CONSTANT_SPEED = 85; 
         const laneWidth = 4.5;
         let nextObstacleZ = -100;
-        const MAX_SPEED = 215; 
-
         let isShipMode = false, spacePressed = false;
         let vy = 0;
         const GRAVITY = -95, JUMP_STRENGTH = 33, SHIP_THRUST = 210;
 
-        function startWithWarning() {
-            if (confirm("WARNING: Proceeding results in brain cell deletion. Proceed?")) {
-                if (confirm("FINAL WARNING: Your GPA may never recover. Are you sure?")) {
-                    beginGame();
-                }
-            }
-        }
-
-        function showTutorialMenu() {
-            document.getElementById('tutorial-overlay').style.display = 'flex';
-        }
-
-        function closeTutorial() {
-            document.getElementById('tutorial-overlay').style.display = 'none';
-            beginGame();
-        }
-
+        function startWithWarning() { if (confirm("Brain cells will be deleted. Proceed?")) beginGame(); }
+        function showTutorialMenu() { alert("Tutorial: Arrows to move, Space to jump, Green beams to fly!"); }
+        
         function beginGame() {
+            initAudio(); // Initialize sound on click
             document.getElementById('start-screen').style.display = 'none';
             isPaused = false;
             clock.start();
+        }
+
+        // --- NEW AUDIO ANALYZER ---
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+
+            // Create a simple Oscillator for a background beat (Bypasses need for external MP3)
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(55, audioCtx.currentTime); // Deep Bass
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            osc.start();
+
+            // Modulate frequency to create a "rhythm"
+            setInterval(() => {
+                const now = audioCtx.currentTime;
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
+                osc.frequency.exponentialRampToValueAtTime(55, now + 0.4);
+            }, 500);
         }
 
         init();
@@ -120,46 +85,33 @@
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x010105);
-            scene.fog = new THREE.Fog(0x010105, 60, 260);
+            scene.background = new THREE.Color(0x010108);
+            scene.fog = new THREE.Fog(0x010108, 60, 280);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
             camera.position.set(0, 10, 24);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
-            const starGeo = new THREE.BufferGeometry();
-            const starVets = [];
-            for(let i=0; i<3000; i++) starVets.push((Math.random()-0.5)*2000, (Math.random()-0.5)*2000, (Math.random()-0.5)*2000);
-            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVets, 3));
-            stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.8}));
-            scene.add(stars);
-
-            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            player = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1.5 }));
+            player = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 2 }));
             player.position.y = 0.7;
             scene.add(player);
 
-            for(let i = 0; i < 25; i++) {
+            for(let i = 0; i < 20; i++) {
                 const grid = new THREE.GridHelper(100, 10, 0x00ffff, 0x111111);
                 grid.position.z = i * -100;
                 scene.add(grid);
                 floors.push(grid);
                 if(i % 2 === 0) spawnBackgroundChunk(i * -100);
             }
-
             clock = new THREE.Clock(false);
             window.addEventListener('keydown', (e) => {
-                if (isGameOver || isPaused) return;
+                if (isPaused) return;
                 if (e.code === 'ArrowLeft' && targetLane > -1) targetLane--;
                 if (e.code === 'ArrowRight' && targetLane < 1) targetLane++;
-                if (e.code === 'Space' || e.code === 'ArrowUp') { 
-                    spacePressed = true; 
-                    if(!isShipMode && player.position.y <= 0.8) vy = JUMP_STRENGTH; 
-                }
+                if (e.code === 'Space' || e.code === 'ArrowUp') { spacePressed = true; if(!isShipMode && player.position.y <= 0.8) vy = JUMP_STRENGTH; }
             });
             window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') spacePressed = false; });
         }
@@ -168,15 +120,25 @@
             const chunk = new THREE.Group();
             const neonColors = [0x00ffff, 0xff00ff, 0x00ff00, 0xffff00];
             for (let side = -1; side <= 1; side += 2) {
-                for (let i = 0; i < 5; i++) {
-                    const h = 50 + Math.random() * 100;
-                    const w = 15 + Math.random() * 15;
-                    const d = 15 + Math.random() * 15;
-                    const col = neonColors[Math.floor(Math.random() * neonColors.length)];
-                    const bGeo = Math.random() > 0.4 ? new THREE.BoxGeometry(w, h, d) : new THREE.CylinderGeometry(w/2, w/2, h, 8);
-                    const building = new THREE.Mesh(bGeo, new THREE.MeshStandardMaterial({ color: 0x050508, emissive: col, emissiveIntensity: 0.4, roughness: 1 }));
-                    building.position.set(side * (45 + Math.random() * 70), h/2, (Math.random()-0.5)*100);
-                    chunk.add(building);
+                for (let i = 0; i < 4; i++) {
+                    const h = 60 + Math.random() * 100;
+                    const w = 15;
+                    const bGroup = new THREE.Group();
+                    const shell = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ color: 0x020205 }));
+                    bGroup.add(shell);
+                    
+                    const winCol = neonColors[Math.floor(Math.random() * neonColors.length)];
+                    // --- REGISTER MATERIAL FOR PULSING ---
+                    const winMat = new THREE.MeshStandardMaterial({ color: winCol, emissive: winCol, emissiveIntensity: 1 });
+                    buildingMaterials.push(winMat); 
+
+                    for(let y = 5; y < h; y += 15) {
+                        const win = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 2, 5), winMat);
+                        win.position.set(0, y - h/2, 0);
+                        bGroup.add(win);
+                    }
+                    bGroup.position.set(side * (55 + Math.random() * 50), h/2, (Math.random()-0.5)*100);
+                    chunk.add(bGroup);
                 }
             }
             chunk.position.z = zPos;
@@ -185,42 +147,27 @@
         }
 
         function spawnObstacle() {
-            const rand = Math.random();
-            let mesh;
-            let type = "";
+            let obstacleGroup = new THREE.Group();
+            let type = (Math.random() < 0.15) ? "portal" : (Math.random() < 0.4 ? "spike" : "wall");
 
-            if (rand < 0.12) { 
-                type = "portal";
+            if (type === "portal") {
                 const col = isShipMode ? 0x0066ff : 0x00ff66;
-                mesh = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 50, 32, 1, true), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 4, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
-                mesh.userData.portalTo = isShipMode ? "normal" : "ship";
-                mesh.position.set(0, 10, player.position.z - 220);
-            } else if (rand < 0.45) { 
-                mesh = new THREE.Group();
-                const count = Math.random() > 0.6 ? 3 : 1;
-                for(let i=0; i<count; i++) {
-                    const s = new THREE.Mesh(new THREE.ConeGeometry(1.6, 4, 4), new THREE.MeshStandardMaterial({color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 2.5}));
-                    s.position.z = i * -4.2;
-                    mesh.add(s);
-                }
-                mesh.position.set((Math.floor(Math.random()*3)-1)*laneWidth, 2, player.position.z - 220);
-                type = "spike";
-            } else if (rand < 0.70) { 
-                mesh = new THREE.Mesh(new THREE.BoxGeometry(laneWidth * (Math.random() > 0.85 ? 2 : 1), 12, 3), new THREE.MeshStandardMaterial({color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 2}));
-                mesh.position.set((Math.floor(Math.random()*3)-1)*laneWidth, Math.random() > 0.5 ? 12 : 5, player.position.z - 220);
-                type = "wall";
-            } else { 
-                mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 30, 8), new THREE.MeshStandardMaterial({color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 2}));
-                mesh.position.set((Math.floor(Math.random()*3)-1)*laneWidth, 14, player.position.z - 220);
-                mesh.userData.isMoving = true;
-                mesh.userData.moveDir = (Math.random() - 0.5) * 2;
-                type = "pillar";
+                const mesh = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 60, 32, 1, true), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 5, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+                obstacleGroup.add(mesh);
+                obstacleGroup.userData = { type: "portal", portalTo: isShipMode ? "normal" : "ship" };
+            } else {
+                const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+                const neonBlueMat = new THREE.LineBasicMaterial({ color: 0x00ffff });
+                const geo = type === "spike" ? new THREE.ConeGeometry(1.6, 4, 4) : new THREE.BoxGeometry(laneWidth, 12, 3);
+                const core = new THREE.Mesh(geo, blackMat);
+                const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geo), neonBlueMat);
+                obstacleGroup.add(core, outline);
+                obstacleGroup.userData = { type: type };
             }
-
-            mesh.userData.type = type;
-            scene.add(mesh);
-            obstacles.push(mesh);
-            nextObstacleZ = player.position.z - Math.max(30, 85 - (score * 0.12));
+            obstacleGroup.position.set((Math.floor(Math.random()*3)-1)*laneWidth, type === "spike" ? 2 : 5, player.position.z - 220);
+            scene.add(obstacleGroup);
+            obstacles.push(obstacleGroup);
+            nextObstacleZ = player.position.z - 85;
         }
 
         function animate() {
@@ -229,24 +176,31 @@
             if (isPaused) { renderer.render(scene, camera); return; }
 
             const delta = Math.min(clock.getDelta(), 0.05);
-            if (currentSpeed < MAX_SPEED) currentSpeed += (3.2 * (1 - currentSpeed/MAX_SPEED)) * delta * 60;
-
-            player.position.z -= currentSpeed * delta;
+            player.position.z -= CONSTANT_SPEED * delta;
             score = Math.floor(Math.abs(player.position.z) / 10);
             document.getElementById('score').innerText = score;
-            stars.position.z = player.position.z;
+
+            // --- AUDIO VISUALIZER LOGIC ---
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                let bass = dataArray[0] / 255.0; // Get bass intensity (0.0 to 1.0)
+                
+                // Pulse every building material in the city
+                buildingMaterials.forEach(mat => {
+                    mat.emissiveIntensity = 0.5 + (bass * 4.0); // Minimum glow + music pulse
+                });
+            }
 
             if (isShipMode) {
                 if (spacePressed) vy += SHIP_THRUST * delta;
                 vy += GRAVITY * delta;
                 player.position.y += vy * delta;
-                player.rotation.x = -vy * 0.012;
                 if (player.position.y < 0.7) { player.position.y = 0.7; vy = 0; }
-                if (player.position.y > 22) { player.position.y = 22; vy = Math.min(-15, -vy * 0.5); }
+                if (player.position.y > 22) { player.position.y = 22; vy = -10; }
             } else {
                 player.position.y += vy * delta;
-                if (player.position.y > 0.7) { vy += GRAVITY * delta; player.rotation.x -= 16 * delta; }
-                else { player.position.y = 0.7; vy = 0; player.rotation.x = 0; }
+                if (player.position.y > 0.7) { vy += GRAVITY * delta; }
+                else { player.position.y = 0.7; vy = 0; }
             }
 
             player.position.x += (targetLane * laneWidth - player.position.x) * 16 * delta;
@@ -255,60 +209,23 @@
 
             if (player.position.z < nextObstacleZ) spawnObstacle();
 
-            // Collision
             const pBox = new THREE.Box3().setFromObject(player);
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const o = obstacles[i];
                 if (o.position.z > player.position.z + 50) { scene.remove(o); obstacles.splice(i, 1); continue; }
-                if (o.userData.isMoving) {
-                    o.position.x += o.userData.moveDir * 24 * delta;
-                    if (Math.abs(o.position.x) > 12) o.userData.moveDir *= -1;
-                }
-                if (o.userData.type === "portal") {
-                    if (Math.abs(player.position.z - o.position.z) < 2.5) {
-                        isShipMode = (o.userData.portalTo === "ship");
-                        vy = 0; scene.remove(o); obstacles.splice(i, 1);
-                        scene.background = new THREE.Color(isShipMode ? 0x051a05 : 0x05051a);
-                        setTimeout(()=>scene.background = new THREE.Color(0x010105), 200);
-                        continue;
-                    }
+                if (o.userData.type === "portal" && Math.abs(player.position.z - o.position.z) < 5) {
+                    isShipMode = (o.userData.portalTo === "ship");
+                    vy = 0; scene.remove(o); obstacles.splice(i, 1);
+                    continue;
                 }
                 const oBox = new THREE.Box3().setFromObject(o);
-                oBox.expandByVector(new THREE.Vector3(-0.4, -0.4, -0.4)); 
-                if (pBox.intersectsBox(oBox)) die();
+                oBox.expandByVector(new THREE.Vector3(-0.5, -0.5, -0.5)); 
+                if (pBox.intersectsBox(oBox)) { isGameOver = true; location.reload(); }
             }
-            
-            // Background Recycling
-            floors.forEach(f => { if (f.position.z > player.position.z + 100) f.position.z -= 2500; });
-            backgroundChunks.forEach(c => { if (c.position.z > player.position.z + 100) c.position.z -= 2500; });
-            
+            floors.forEach(f => { if (f.position.z > player.position.z + 100) f.position.z -= 2000; });
+            backgroundChunks.forEach(c => { if (c.position.z > player.position.z + 100) c.position.z -= 2000; });
             renderer.render(scene, camera);
         }
-
-        function die() {
-            if (!hasUsedLife && score > 35) {
-                isPaused = true;
-                winningSubject = ['Math', 'Science', 'ELA', 'Social Studies', 'PE'][Math.floor(Math.random() * 5)];
-                document.getElementById('subject-gate').style.display = 'flex';
-            } else {
-                isGameOver = true;
-                document.getElementById('game-over').style.display = 'flex';
-                document.getElementById('final-score').innerText = score;
-            }
-        }
-
-        function checkSubject(choice) {
-            document.getElementById('subject-gate').style.display = 'none';
-            if (choice === winningSubject) {
-                hasUsedLife = true; isPaused = false;
-                obstacles.forEach(o => scene.remove(o));
-                obstacles = [];
-                vy = isShipMode ? 0 : JUMP_STRENGTH;
-                scene.background = new THREE.Color(0x00ff00);
-                setTimeout(()=>scene.background = new THREE.Color(0x010105), 400);
-            } else { isGameOver = true; document.getElementById('game-over').style.display = 'flex'; document.getElementById('final-score').innerText = score; }
-        }
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
 </body>
 </html>
